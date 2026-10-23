@@ -100,7 +100,7 @@ function findRegionBySegments(
 }
 
 /* =========================================================
-   모든 지역 경로
+   모든 지역 경로 생성
 ========================================================= */
 
 function getAllRegionPaths(
@@ -134,7 +134,7 @@ function getAllRegionPaths(
 }
 
 /* =========================================================
-   부모지역
+   부모지역 이름
 ========================================================= */
 
 function getParentLocationName(
@@ -150,7 +150,7 @@ function getParentLocationName(
 }
 
 /* =========================================================
-   SEO용 지역명
+   SEO 검색용 지역명
 
    예
    서울 강남구
@@ -187,75 +187,6 @@ function getFullSearchLocation(
 }
 
 /* =========================================================
-   HASH
-========================================================= */
-
-function hashString(value: string) {
-  let hash = 2166136261;
-
-  for (
-    let i = 0;
-    i < value.length;
-    i += 1
-  ) {
-    hash ^= value.charCodeAt(i);
-
-    hash = Math.imul(
-      hash,
-      16777619
-    );
-  }
-
-  return hash >>> 0;
-}
-
-/* =========================================================
-   SEO DESCRIPTION
-
-   핵심:
-   현재지역만 쓰지 않고 바로 위 지역까지
-   자연스럽게 포함합니다.
-
-   예:
-   안양 만안구 철거...
-   강남구 역삼동 철거...
-========================================================= */
-
-function createSeoDescription(
-  region: Region,
-  ancestors: Region[],
-  pathname: string
-) {
-  const location =
-    getFullSearchLocation(
-      region,
-      ancestors
-    );
-
-  const patterns = [
-    `${location} 철거를 준비하고 있다면 상가·매장·점포·사무실 철거와 폐업 후 원상복구 범위를 확인해보세요. 현장 확인 후 무료 방문견적을 안내합니다.`,
-
-    `${location} 철거업체를 알아보고 있다면 상가철거와 매장·사무실·가게 폐업철거, 원상복구 작업 범위를 확인해보세요. 현장 무료 방문견적 상담이 가능합니다.`,
-
-    `${location} 상가철거와 매장 원상복구를 준비할 때 확인해야 할 기존 인테리어와 시설물 작업 범위를 안내합니다. 점포·가게·사무실 현장도 무료 방문견적이 가능합니다.`,
-
-    `${location} 폐업철거를 앞두고 있다면 상가와 매장, 점포 내부 시설물 정리부터 원상복구까지 필요한 작업 범위를 확인해보세요. 현장 방문 후 견적을 안내합니다.`,
-
-    `${location} 매장철거와 점포 원상복구를 준비하는 분들을 위해 기존 시설과 인테리어 철거 범위를 안내합니다. 상가·가게·사무실 현장도 무료 방문견적 상담이 가능합니다.`,
-
-    `${location} 사무실철거 또는 상가 폐업을 준비하고 있다면 철거 대상 시설과 원상복구 조건을 먼저 확인해야 합니다. 현장에 필요한 작업을 확인하고 무료 방문견적을 안내합니다.`,
-
-    `${location} 가게철거와 폐업 후 원상복구 과정에서 확인해야 할 바닥·천장·벽체·기존 인테리어 범위를 안내합니다. 상가와 매장 현장도 무료 방문견적 상담이 가능합니다.`,
-  ];
-
-  return patterns[
-    hashString(
-      `${pathname}-description`
-    ) % patterns.length
-  ];
-}
-
-/* =========================================================
    콘텐츠 생성
 ========================================================= */
 
@@ -272,6 +203,22 @@ function getPageContent(
       ),
     path: pathname,
   });
+}
+
+/* =========================================================
+   SEO DESCRIPTION
+========================================================= */
+
+function createSeoDescription(
+  region: Region,
+  ancestors: Region[],
+  pathname: string
+) {
+  return getPageContent(
+    region,
+    ancestors,
+    pathname
+  ).description;
 }
 
 /* =========================================================
@@ -373,7 +320,7 @@ export function generateStaticParams() {
 }
 
 /* =========================================================
-   공통 SECTION TEXT
+   공통 SECTION
 ========================================================= */
 
 function SectionText({
@@ -410,7 +357,7 @@ function SectionText({
 }
 
 /* =========================================================
-   HIGHLIGHTS
+   HIGHLIGHT
 ========================================================= */
 
 function HighlightCards({
@@ -451,10 +398,7 @@ function HighlightCards({
 }
 
 /* =========================================================
-   LAYOUT A
-   GUIDE
-
-   일반 정보형
+   GUIDE LAYOUT
 ========================================================= */
 
 function GuideLayout({
@@ -510,10 +454,7 @@ function GuideLayout({
 }
 
 /* =========================================================
-   LAYOUT B
-   CLOSURE
-
-   폐업철거 흐름형
+   CLOSURE LAYOUT
 ========================================================= */
 
 function ClosureLayout({
@@ -577,10 +518,7 @@ function ClosureLayout({
 }
 
 /* =========================================================
-   LAYOUT C
-   RESTORATION
-
-   원상복구 설명형
+   RESTORATION LAYOUT
 ========================================================= */
 
 function RestorationLayout({
@@ -661,10 +599,7 @@ function RestorationLayout({
 }
 
 /* =========================================================
-   LAYOUT D
-   COMMERCIAL
-
-   상가/매장 카드형
+   COMMERCIAL LAYOUT
 ========================================================= */
 
 function CommercialLayout({
@@ -740,10 +675,7 @@ function CommercialLayout({
 }
 
 /* =========================================================
-   LAYOUT E
-   OFFICE
-
-   사무실 2단형
+   OFFICE LAYOUT
 ========================================================= */
 
 function OfficeLayout({
@@ -825,10 +757,7 @@ function OfficeLayout({
 }
 
 /* =========================================================
-   LAYOUT F
-   PROCESS
-
-   세로 타임라인
+   PROCESS LAYOUT
 ========================================================= */
 
 function ProcessLayout({
@@ -890,10 +819,7 @@ function ProcessLayout({
 }
 
 /* =========================================================
-   LAYOUT G
-   CONTRACT
-
-   계약/원상복구 문서형
+   CONTRACT LAYOUT
 ========================================================= */
 
 function ContractLayout({
@@ -956,10 +882,7 @@ function ContractLayout({
 }
 
 /* =========================================================
-   LAYOUT H
-   FIELD
-
-   현장조건 / 견적 그리드형
+   FIELD LAYOUT
 ========================================================= */
 
 function FieldLayout({
@@ -1086,10 +1009,7 @@ function RegionContentLayout({
 }
 
 /* =========================================================
-   INTRO LAYOUT
-
-   도입부 역시 layoutType에 따라
-   일부 화면 구성을 다르게 합니다.
+   INTRO SECTION
 ========================================================= */
 
 function IntroSection({
@@ -1294,13 +1214,6 @@ export default async function RegionPage({
 
   /* =======================================================
      STRUCTURED DATA
-
-     실제 주소를 제공받지 않았으므로
-     임의의 LocalBusiness 주소를 만들지 않습니다.
-
-     Organization
-     Service
-     BreadcrumbList
   ======================================================= */
 
   const structuredData = {
@@ -1374,14 +1287,72 @@ export default async function RegionPage({
         itemListElement:
           breadcrumbItems,
       },
+
+      {
+        "@type":
+          "WebPage",
+
+        "@id":
+          `${canonicalUrl}#webpage`,
+
+        url:
+          canonicalUrl,
+
+        name:
+          content.title,
+
+        description:
+          pageDescription,
+
+        inLanguage:
+          "ko-KR",
+
+        breadcrumb: {
+          "@id":
+            `${canonicalUrl}#breadcrumb`,
+        },
+
+        about: {
+          "@id":
+            `${canonicalUrl}#service`,
+        },
+
+        isPartOf: {
+          "@id":
+            `${SITE_URL}/#website`,
+        },
+      },
+
+      {
+        "@type":
+          "WebSite",
+
+        "@id":
+          `${SITE_URL}/#website`,
+
+        url:
+          SITE_URL,
+
+        name:
+          SITE_NAME,
+
+        publisher: {
+          "@id":
+            `${SITE_URL}/#organization`,
+        },
+
+        inLanguage:
+          "ko-KR",
+      },
     ],
   };
 
   return (
-    <main className="min-h-screen bg-white pb-16 text-zinc-950 md:pb-0">
-      {/* ==================================================
-          JSON-LD
-      ================================================== */}
+    <main
+      id="main-content"
+      className="min-h-screen bg-white pb-16 text-zinc-950 md:pb-0"
+    >
+      {/* JSON-LD */}
 
       <script
         type="application/ld+json"
@@ -1396,9 +1367,7 @@ export default async function RegionPage({
         }}
       />
 
-      {/* ==================================================
-          HEADER
-      ================================================== */}
+      {/* HEADER */}
 
       <header className="border-b border-zinc-800 bg-zinc-950 text-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
@@ -1429,9 +1398,7 @@ export default async function RegionPage({
         </div>
       </header>
 
-      {/* ==================================================
-          BREADCRUMB
-      ================================================== */}
+      {/* BREADCRUMB */}
 
       <nav
         aria-label="현재 위치"
@@ -1470,11 +1437,7 @@ export default async function RegionPage({
         </div>
       </nav>
 
-      {/* ==================================================
-          HERO
-
-          페이지 유형에 따라 H1 자체도 달라집니다.
-      ================================================== */}
+      {/* HERO */}
 
       <section className="bg-zinc-950 text-white">
         <div className="mx-auto max-w-7xl px-6 py-20 md:py-28">
@@ -1520,31 +1483,19 @@ export default async function RegionPage({
         </div>
       </section>
 
-      {/* ==================================================
-          지역별 도입부
-      ================================================== */}
+      {/* 지역별 도입부 */}
 
       <IntroSection
         content={content}
       />
 
-      {/* ==================================================
-          ★ 지역별 핵심 콘텐츠
-
-          layoutType에 따라 완전히 다른
-          출력 구조를 사용합니다.
-      ================================================== */}
+      {/* 지역별 핵심 콘텐츠 */}
 
       <RegionContentLayout
         content={content}
       />
 
-      {/* ==================================================
-          지역별 마무리
-
-          content.ts에서 각 유형별로
-          다른 제목과 본문을 가져옵니다.
-      ================================================== */}
+      {/* 지역별 마무리 */}
 
       <section className="border-y border-zinc-200 bg-white">
         <div className="mx-auto max-w-7xl px-6 py-20 md:py-24">
@@ -1576,9 +1527,7 @@ export default async function RegionPage({
         </div>
       </section>
 
-      {/* ==================================================
-          하위지역 내부링크
-      ================================================== */}
+      {/* 하위지역 내부링크 */}
 
       {region.children &&
         region.children.length > 0 && (
@@ -1595,10 +1544,10 @@ export default async function RegionPage({
                 </h2>
 
                 <p className="mt-5 leading-8 text-zinc-600">
-                  아래 세부 지역을
-                  선택하면 해당 지역의
-                  철거와 원상복구 정보를
-                  확인할 수 있습니다.
+                  아래 세부 지역을 선택하면
+                  각 지역의 상가·매장·사무실
+                  철거와 폐업 후 원상복구
+                  정보를 확인할 수 있습니다.
                 </p>
               </div>
 
@@ -1622,9 +1571,7 @@ export default async function RegionPage({
           </section>
         )}
 
-      {/* ==================================================
-          형제지역 내부링크
-      ================================================== */}
+      {/* 형제지역 내부링크 */}
 
       {siblingRegions.length >
         0 && (
@@ -1635,7 +1582,9 @@ export default async function RegionPage({
             </p>
 
             <h2 className="mt-3 text-2xl font-black">
-              같은 권역의 철거 안내
+              {parentRegion
+                ? `${parentRegion.name} 관련 지역 철거 안내`
+                : "같은 권역의 철거 안내"}
             </h2>
 
             <nav
@@ -1663,9 +1612,7 @@ export default async function RegionPage({
         </section>
       )}
 
-      {/* ==================================================
-          부모지역 링크
-      ================================================== */}
+      {/* 부모지역 링크 */}
 
       {parentRegion && (
         <section className="border-t border-zinc-200 bg-zinc-50">
@@ -1683,9 +1630,7 @@ export default async function RegionPage({
         </section>
       )}
 
-      {/* ==================================================
-          CONTACT
-      ================================================== */}
+      {/* CONTACT */}
 
       <section className="bg-zinc-950 text-white">
         <div className="mx-auto max-w-7xl px-6 py-20 text-center md:py-24">
@@ -1739,9 +1684,7 @@ export default async function RegionPage({
         </div>
       </section>
 
-      {/* ==================================================
-          FOOTER
-      ================================================== */}
+      {/* FOOTER */}
 
       <footer className="border-t border-zinc-800 bg-zinc-950 text-zinc-400">
         <div className="mx-auto max-w-7xl px-6 py-10">
@@ -1785,9 +1728,7 @@ export default async function RegionPage({
         </div>
       </footer>
 
-      {/* ==================================================
-          모바일 고정 상담
-      ================================================== */}
+      {/* 모바일 고정 상담 */}
 
       <div className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-2 border-t border-zinc-200 bg-white md:hidden">
         <a
