@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 const SITE_URL = "https://demo.thesavecompany.com";
@@ -26,6 +26,45 @@ export const metadata: Metadata = {
 
   creator: SITE_NAME,
   publisher: SITE_NAME,
+
+  /*
+   * PWA Manifest
+   */
+  manifest: "/manifest.json",
+
+  /*
+   * 아이폰 홈 화면 웹 앱 설정
+   */
+  appleWebApp: {
+    capable: true,
+    title: SITE_NAME,
+    statusBarStyle: "black-translucent",
+  },
+
+  /*
+   * 앱 / 홈 화면 아이콘
+   */
+  icons: {
+    icon: [
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+    apple: [
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+    ],
+  },
 
   verification: {
     other: {
@@ -68,6 +107,16 @@ export const metadata: Metadata = {
   },
 
   category: "철거",
+};
+
+/*
+ * 모바일 / PWA 화면 설정
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#080808",
 };
 
 export default function RootLayout({

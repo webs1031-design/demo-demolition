@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LiveChat from "../components/LiveChat";
 import { regions } from "./data/regions";
 
 const PHONE_DISPLAY = "010-2269-8352";
@@ -45,7 +46,7 @@ const services = [
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white text-zinc-950">
+    <main className="min-h-screen bg-white pb-16 text-zinc-950 md:pb-0">
       {/* ==================================================
           HEADER
       ================================================== */}
@@ -72,7 +73,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="hidden rounded-md border border-zinc-300 px-4 py-2.5 text-sm font-bold text-zinc-950 transition hover:bg-zinc-100 sm:inline-block"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
           </div>
         </div>
@@ -94,9 +95,9 @@ export default function Home() {
           </h1>
 
           <p className="mt-7 max-w-3xl text-base leading-8 text-zinc-300 md:text-lg">
-            서울 경기 인천 충청 지역의 상가 매장 사무실 점포 가게 철거와
-            폐업철거 원상복구 정보를 안내합니다. 현장을 직접 확인한 뒤
-            필요한 작업 범위를 안내하고 무료 방문견적을 진행합니다.
+            서울 경기 인천 대전 세종 충남 충북 지역의 상가 매장 사무실 점포
+            가게 철거와 폐업철거 원상복구 정보를 안내합니다. 현장을 직접
+            확인한 뒤 필요한 작업 범위를 안내하고 무료 방문견적을 진행합니다.
           </p>
 
           <div className="mt-9 flex flex-wrap gap-3">
@@ -120,12 +121,12 @@ export default function Home() {
               rel="noopener noreferrer"
               className="rounded-md border border-zinc-600 px-6 py-3.5 font-bold text-white transition hover:border-white"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
           </div>
 
           <p className="mt-5 text-sm text-zinc-400">
-            무료 방문견적 · 전화상담 · 실시간 채팅상담
+            무료 방문견적 · 전화상담 · 네이버 톡톡 · 실시간 채팅
           </p>
         </div>
       </section>
@@ -145,9 +146,9 @@ export default function Home() {
           </h2>
 
           <p className="mt-5 leading-8 text-zinc-600">
-            같은 철거라도 공간의 용도와 기존 인테리어 상태 임대차 조건에
-            따라 필요한 작업이 달라집니다. 현장을 확인하고 실제 필요한
-            철거 범위를 구분하는 것이 중요합니다.
+            같은 철거라도 공간의 용도와 기존 인테리어 상태 임대차 조건에 따라
+            필요한 작업이 달라집니다. 현장을 확인하고 실제 필요한 철거 범위를
+            구분하는 것이 중요합니다.
           </p>
         </div>
 
@@ -176,13 +177,12 @@ export default function Home() {
             <p className="text-sm font-bold text-zinc-500">지역별 철거 안내</p>
 
             <h2 className="mt-3 text-3xl font-bold tracking-tight md:text-4xl">
-              서울 경기 인천 충청 지역 철거업체
+              서울 경기 인천 대전 세종 충남 충북 지역 철거업체
             </h2>
 
             <p className="mt-5 leading-8 text-zinc-600">
               지역을 선택하면 해당 지역의 상가철거 매장철거 사무실철거
-              점포철거 가게철거 폐업철거와 원상복구 정보를 확인할 수
-              있습니다.
+              점포철거 가게철거 폐업철거와 원상복구 정보를 확인할 수 있습니다.
             </p>
           </div>
 
@@ -241,10 +241,10 @@ export default function Home() {
             </h2>
 
             <p className="mt-5 leading-8 text-zinc-600">
-              상가나 매장 사무실을 정리할 때 모든 시설을 무조건 철거하는
-              것이 아니라 임대차 계약 내용과 기존 시설 상태를 먼저
-              확인해야 합니다. 철거할 부분과 유지할 부분을 구분하면
-              불필요한 작업을 줄일 수 있습니다.
+              상가나 매장 사무실을 정리할 때 모든 시설을 무조건 철거하는 것이
+              아니라 임대차 계약 내용과 기존 시설 상태를 먼저 확인해야 합니다.
+              철거할 부분과 유지할 부분을 구분하면 불필요한 작업을 줄일 수
+              있습니다.
             </p>
           </article>
 
@@ -257,8 +257,8 @@ export default function Home() {
 
             <p className="mt-5 leading-8 text-zinc-600">
               점포 가게 상가 매장 사무실 등 공간의 크기와 내부 구조 기존
-              인테리어 상태에 따라 철거 범위가 달라질 수 있습니다. 현장을
-              직접 확인한 뒤 필요한 작업 내용을 구분해 견적을 안내합니다.
+              인테리어 상태에 따라 철거 범위가 달라질 수 있습니다. 현장을 직접
+              확인한 뒤 필요한 작업 내용을 구분해 견적을 안내합니다.
             </p>
           </article>
         </div>
@@ -278,8 +278,8 @@ export default function Home() {
           </h2>
 
           <p className="mx-auto mt-5 max-w-2xl leading-8 text-zinc-300">
-            상가 매장 사무실 점포 가게 폐업철거와 원상복구 현장을
-            확인하고 필요한 작업 범위를 안내합니다.
+            상가 매장 사무실 점포 가게 폐업철거와 원상복구 현장을 확인하고
+            필요한 작업 범위를 안내합니다.
           </p>
 
           <a
@@ -307,7 +307,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="rounded-md border border-zinc-600 px-7 py-3.5 font-bold text-white transition hover:border-white"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
 
             <a
@@ -328,8 +328,8 @@ export default function Home() {
           <p className="text-lg font-bold text-white">더세이브철거</p>
 
           <p className="mt-3 text-sm leading-7">
-            서울 경기 인천 충청 지역 상가 매장 사무실 점포 가게 철거
-            폐업철거 원상복구
+            서울 경기 인천 대전 세종 충남 충북 지역 상가 매장 사무실 점포
+            가게 철거 폐업철거 원상복구
           </p>
 
           <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm">
@@ -346,7 +346,7 @@ export default function Home() {
               rel="noopener noreferrer"
               className="font-semibold text-white hover:underline"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
           </div>
 
@@ -357,7 +357,7 @@ export default function Home() {
       {/* ==================================================
           MOBILE FIXED CONTACT
       ================================================== */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 grid grid-cols-2 border-t border-zinc-200 bg-white md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-40 grid grid-cols-2 border-t border-zinc-200 bg-white md:hidden">
         <a
           href={PHONE_LINK}
           className="flex items-center justify-center bg-zinc-950 px-3 py-4 text-sm font-bold text-white"
@@ -371,11 +371,15 @@ export default function Home() {
           rel="noopener noreferrer"
           className="flex items-center justify-center px-3 py-4 text-sm font-bold text-zinc-950"
         >
-          실시간 채팅상담
+          네이버 톡톡
         </a>
       </div>
 
-      <div className="h-14 md:hidden" />
+      {/* ==================================================
+          REAL-TIME LIVE CHAT
+          components/LiveChat.tsx
+      ================================================== */}
+      <LiveChat />
     </main>
   );
 }

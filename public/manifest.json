@@ -1,0 +1,26 @@
+{
+  "name": "더세이브철거 실시간 상담 관리자",
+  "short_name": "더세이브 상담",
+  "description": "더세이브철거 실시간 상담 관리자",
+  "start_url": "/admin/chat",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "lang": "ko-KR",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
