@@ -1,5 +1,4 @@
 import Link from "next/link";
-import LiveChat from "../components/LiveChat";
 import { regions } from "./data/regions";
 
 const PHONE_DISPLAY = "010-2269-8352";
@@ -374,12 +373,6 @@ export default function Home() {
           네이버 톡톡
         </a>
       </div>
-
-      {/* ==================================================
-          REAL-TIME LIVE CHAT
-          components/LiveChat.tsx
-      ================================================== */}
-      <LiveChat />
     </main>
   );
 }

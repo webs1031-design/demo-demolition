@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import LiveChat from "../components/LiveChat";
 import "./globals.css";
 
 const SITE_URL = "https://demo.thesavecompany.com";
@@ -126,7 +127,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        {children}
+        <LiveChat />
+      </body>
     </html>
   );
 }
