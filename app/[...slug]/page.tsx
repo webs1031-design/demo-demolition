@@ -1392,7 +1392,7 @@ export default async function RegionPage({
               rel="noopener noreferrer"
               className="hidden rounded-md border border-zinc-600 px-4 py-2.5 text-sm font-bold sm:inline-block"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
           </div>
         </div>
@@ -1476,7 +1476,7 @@ export default async function RegionPage({
                 rel="noopener noreferrer"
                 className="rounded-md border border-zinc-600 px-6 py-3.5 font-bold text-white"
               >
-                실시간 채팅상담
+                네이버 톡톡
               </a>
             </div>
           </div>
@@ -1678,7 +1678,7 @@ export default async function RegionPage({
               rel="noopener noreferrer"
               className="rounded-md border border-zinc-600 px-7 py-3.5 font-bold text-white"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
           </div>
         </div>
@@ -1718,7 +1718,7 @@ export default async function RegionPage({
               rel="noopener noreferrer"
               className="font-semibold text-white"
             >
-              실시간 채팅상담
+              네이버 톡톡
             </a>
           </div>
 
@@ -1744,7 +1744,7 @@ export default async function RegionPage({
           rel="noopener noreferrer"
           className="flex items-center justify-center px-3 py-4 text-sm font-bold text-zinc-950"
         >
-          실시간 채팅상담
+          네이버 톡톡
         </a>
       </div>
     </main>
