@@ -30,6 +30,16 @@ type ChatMessage = {
 
 type UnreadMap = Record<string, number>;
 
+type NotificationStep =
+  | ""
+  | "알림 권한 확인중"
+  | "서비스워커 확인중"
+  | "푸시 구독 확인중"
+  | "푸시 구독 생성중"
+  | "로그인 확인중"
+  | "기기 등록중"
+  | "알림 설정 완료";
+
 function formatDateTime(value: string) {
   const date = new Date(value);
 
@@ -53,11 +63,18 @@ function formatMessageTime(value: string) {
 }
 
 function getSenderType(message: ChatMessage) {
-  return message.sender_type === "admin" ? "admin" : "customer";
+  return message.sender_type === "admin"
+    ? "admin"
+    : "customer";
 }
 
-function shortenMessage(message: string, maxLength = 80) {
-  const cleanMessage = message.replace(/\s+/g, " ").trim();
+function shortenMessage(
+  message: string,
+  maxLength = 80
+) {
+  const cleanMessage = message
+    .replace(/\s+/g, " ")
+    .trim();
 
   if (cleanMessage.length <= maxLength) {
     return cleanMessage;
@@ -66,8 +83,12 @@ function shortenMessage(message: string, maxLength = 80) {
   return `${cleanMessage.slice(0, maxLength)}...`;
 }
 
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+function urlBase64ToUint8Array(
+  base64String: string
+) {
+  const padding = "=".repeat(
+    (4 - (base64String.length % 4)) % 4
+  );
 
   const base64 = (base64String + padding)
     .replace(/-/g, "+")
@@ -75,66 +96,171 @@ function urlBase64ToUint8Array(base64String: string) {
 
   const rawData = window.atob(base64);
 
-  const outputArray = new Uint8Array(rawData.length);
+  const outputArray = new Uint8Array(
+    rawData.length
+  );
 
-  for (let index = 0; index < rawData.length; index += 1) {
-    outputArray[index] = rawData.charCodeAt(index);
+  for (
+    let index = 0;
+    index < rawData.length;
+    index += 1
+  ) {
+    outputArray[index] =
+      rawData.charCodeAt(index);
   }
 
   return outputArray;
 }
 
+function withTimeout<T>(
+  promise: Promise<T>,
+  milliseconds: number,
+  message: string
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(message));
+    }, milliseconds);
+
+    promise
+      .then((result) => {
+        window.clearTimeout(timer);
+        resolve(result);
+      })
+      .catch((error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
+function getPushErrorMessage(error: unknown) {
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError") {
+      return "아이폰에서 알림 권한이 허용되지 않았습니다. 설정 → 알림 → 더세이브 상담에서 알림 허용을 켜주세요.";
+    }
+
+    if (error.name === "AbortError") {
+      return "아이폰 푸시 알림 등록이 중단되었습니다. 앱을 완전히 종료한 뒤 다시 실행해서 알림 켜기를 눌러주세요.";
+    }
+
+    if (error.name === "InvalidStateError") {
+      return "푸시 알림 등록 상태가 올바르지 않습니다. 홈 화면의 더세이브 상담 앱을 완전히 종료한 뒤 다시 실행해주세요.";
+    }
+
+    if (error.name === "InvalidAccessError") {
+      return "푸시 알림 키를 확인하지 못했습니다. VAPID 설정을 확인해주세요.";
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "알림 설정 중 오류가 발생했습니다.";
+}
+
 export default function AdminChatPage() {
   const router = useRouter();
 
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] =
+    useState<User | null>(null);
 
-  const [rooms, setRooms] = useState<ChatRoom[]>([]);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [rooms, setRooms] =
+    useState<ChatRoom[]>([]);
 
-  const [selectedRoomId, setSelectedRoomId] =
-    useState<string | null>(null);
+  const [messages, setMessages] =
+    useState<ChatMessage[]>([]);
 
-  const [inputMessage, setInputMessage] = useState("");
+  const [
+    selectedRoomId,
+    setSelectedRoomId,
+  ] = useState<string | null>(null);
 
-  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(true);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [inputMessage, setInputMessage] =
+    useState("");
 
-  const [errorMessage, setErrorMessage] = useState("");
+  const [
+    isCheckingAuth,
+    setIsCheckingAuth,
+  ] = useState(true);
 
-  const [unreadCounts, setUnreadCounts] = useState<UnreadMap>({});
+  const [
+    isLoadingRooms,
+    setIsLoadingRooms,
+  ] = useState(true);
 
-  const [notificationPermission, setNotificationPermission] =
-    useState<NotificationPermission | "unsupported">("default");
+  const [
+    isLoadingMessages,
+    setIsLoadingMessages,
+  ] = useState(false);
 
-  const [soundEnabled, setSoundEnabled] = useState(false);
-
-  const [pushEnabled, setPushEnabled] = useState(false);
-
-  const [isEnablingNotifications, setIsEnablingNotifications] =
+  const [isSending, setIsSending] =
     useState(false);
 
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [errorMessage, setErrorMessage] =
+    useState("");
 
-  const selectedRoomIdRef = useRef<string | null>(null);
+  const [
+    unreadCounts,
+    setUnreadCounts,
+  ] = useState<UnreadMap>({});
 
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const [
+    notificationPermission,
+    setNotificationPermission,
+  ] = useState<
+    NotificationPermission | "unsupported"
+  >("default");
+
+  const [
+    soundEnabled,
+    setSoundEnabled,
+  ] = useState(false);
+
+  const [pushEnabled, setPushEnabled] =
+    useState(false);
+
+  const [
+    isEnablingNotifications,
+    setIsEnablingNotifications,
+  ] = useState(false);
+
+  const [
+    notificationStep,
+    setNotificationStep,
+  ] = useState<NotificationStep>("");
+
+  const messagesEndRef =
+    useRef<HTMLDivElement | null>(null);
+
+  const selectedRoomIdRef =
+    useRef<string | null>(null);
+
+  const audioContextRef =
+    useRef<AudioContext | null>(null);
 
   const selectedRoom = useMemo(() => {
-    return rooms.find((room) => room.id === selectedRoomId) ?? null;
+    return (
+      rooms.find(
+        (room) =>
+          room.id === selectedRoomId
+      ) ?? null
+    );
   }, [rooms, selectedRoomId]);
 
   const totalUnreadCount = useMemo(() => {
-    return Object.values(unreadCounts).reduce(
+    return Object.values(
+      unreadCounts
+    ).reduce(
       (total, count) => total + count,
       0
     );
   }, [unreadCounts]);
 
   useEffect(() => {
-    selectedRoomIdRef.current = selectedRoomId;
+    selectedRoomIdRef.current =
+      selectedRoomId;
   }, [selectedRoomId]);
 
   useEffect(() => {
@@ -143,11 +269,78 @@ export default function AdminChatPage() {
     }
 
     if (!("Notification" in window)) {
-      setNotificationPermission("unsupported");
+      setNotificationPermission(
+        "unsupported"
+      );
       return;
     }
 
-    setNotificationPermission(Notification.permission);
+    setNotificationPermission(
+      Notification.permission
+    );
+  }, []);
+
+  /*
+   * 페이지가 열렸을 때 이미 이 기기에
+   * Push 구독이 존재하는지 자동 확인합니다.
+   *
+   * 아이폰에서 이미 구독을 완료한 경우
+   * 다시 알림 설정을 할 필요 없이
+   * "알림 켜짐" 상태로 표시할 수 있습니다.
+   */
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      !("serviceWorker" in navigator) ||
+      !("PushManager" in window)
+    ) {
+      return;
+    }
+
+    let mounted = true;
+
+    async function checkExistingPushSubscription() {
+      try {
+        const registration =
+          await navigator.serviceWorker.getRegistration(
+            "/"
+          );
+
+        if (!registration || !mounted) {
+          return;
+        }
+
+        const subscription =
+          await registration.pushManager.getSubscription();
+
+        if (!mounted) {
+          return;
+        }
+
+        if (
+          subscription &&
+          "Notification" in window &&
+          Notification.permission ===
+            "granted"
+        ) {
+          setPushEnabled(true);
+          setNotificationPermission(
+            "granted"
+          );
+        }
+      } catch (error) {
+        console.error(
+          "기존 푸시 구독 확인 오류:",
+          error
+        );
+      }
+    }
+
+    void checkExistingPushSubscription();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -158,7 +351,8 @@ export default function AdminChatPage() {
     if (totalUnreadCount > 0) {
       document.title = `(${totalUnreadCount}) 더세이브철거 상담`;
     } else {
-      document.title = "더세이브철거 실시간 상담 관리자";
+      document.title =
+        "더세이브철거 실시간 상담 관리자";
     }
 
     return () => {
@@ -166,393 +360,725 @@ export default function AdminChatPage() {
     };
   }, [totalUnreadCount]);
 
-  const scrollToBottom = useCallback(() => {
-    window.requestAnimationFrame(() => {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
-      });
-    });
-  }, []);
-
-  const playNotificationSound = useCallback(() => {
-    if (!soundEnabled || typeof window === "undefined") {
-      return;
-    }
-
-    try {
-      const AudioContextClass =
-        window.AudioContext ||
-        (
-          window as typeof window & {
-            webkitAudioContext?: typeof AudioContext;
+  const scrollToBottom =
+    useCallback(() => {
+      window.requestAnimationFrame(() => {
+        messagesEndRef.current?.scrollIntoView(
+          {
+            behavior: "smooth",
+            block: "end",
           }
-        ).webkitAudioContext;
+        );
+      });
+    }, []);
 
-      if (!AudioContextClass) {
-        return;
-      }
-
-      let audioContext = audioContextRef.current;
-
-      if (!audioContext) {
-        audioContext = new AudioContextClass();
-        audioContextRef.current = audioContext;
-      }
-
-      if (audioContext.state === "suspended") {
-        void audioContext.resume();
-      }
-
-      const now = audioContext.currentTime;
-
-      const oscillator1 = audioContext.createOscillator();
-      const gain1 = audioContext.createGain();
-
-      oscillator1.type = "sine";
-      oscillator1.frequency.setValueAtTime(880, now);
-
-      gain1.gain.setValueAtTime(0.0001, now);
-      gain1.gain.exponentialRampToValueAtTime(
-        0.18,
-        now + 0.01
-      );
-      gain1.gain.exponentialRampToValueAtTime(
-        0.0001,
-        now + 0.18
-      );
-
-      oscillator1.connect(gain1);
-      gain1.connect(audioContext.destination);
-
-      oscillator1.start(now);
-      oscillator1.stop(now + 0.2);
-
-      const oscillator2 = audioContext.createOscillator();
-      const gain2 = audioContext.createGain();
-
-      oscillator2.type = "sine";
-      oscillator2.frequency.setValueAtTime(
-        1174,
-        now + 0.2
-      );
-
-      gain2.gain.setValueAtTime(0.0001, now + 0.2);
-      gain2.gain.exponentialRampToValueAtTime(
-        0.18,
-        now + 0.21
-      );
-      gain2.gain.exponentialRampToValueAtTime(
-        0.0001,
-        now + 0.4
-      );
-
-      oscillator2.connect(gain2);
-      gain2.connect(audioContext.destination);
-
-      oscillator2.start(now + 0.2);
-      oscillator2.stop(now + 0.42);
-    } catch (error) {
-      console.error("알림음 재생 오류:", error);
-    }
-  }, [soundEnabled]);
-
-  const showBrowserNotification = useCallback(
-    (message: ChatMessage) => {
+  const playNotificationSound =
+    useCallback(() => {
       if (
-        typeof window === "undefined" ||
-        !("Notification" in window) ||
-        Notification.permission !== "granted"
+        !soundEnabled ||
+        typeof window === "undefined"
       ) {
         return;
       }
 
       try {
-        const notification = new Notification(
-          "더세이브철거 새 상담 메시지",
-          {
-            body: shortenMessage(message.message),
-            tag: `chat-${message.room_id}`,
-            requireInteraction: false,
-          }
-        );
+        const AudioContextClass =
+          window.AudioContext ||
+          (
+            window as typeof window & {
+              webkitAudioContext?: typeof AudioContext;
+            }
+          ).webkitAudioContext;
 
-        notification.onclick = () => {
-          window.focus();
-
-          setSelectedRoomId(message.room_id);
-
-          setUnreadCounts((current) => ({
-            ...current,
-            [message.room_id]: 0,
-          }));
-
-          notification.close();
-        };
-      } catch (error) {
-        console.error("브라우저 알림 표시 오류:", error);
-      }
-    },
-    []
-  );
-
-  const enableNotifications = useCallback(async () => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    if (isEnablingNotifications) {
-      return;
-    }
-
-    setIsEnablingNotifications(true);
-    setErrorMessage("");
-
-    try {
-      if (!("Notification" in window)) {
-        setNotificationPermission("unsupported");
-
-        throw new Error(
-          "현재 브라우저에서는 알림 기능을 사용할 수 없습니다."
-        );
-      }
-
-      const permission =
-        await Notification.requestPermission();
-
-      setNotificationPermission(permission);
-
-      if (permission !== "granted") {
-        if (permission === "denied") {
-          throw new Error(
-            "브라우저 알림이 차단되어 있습니다. 사이트 설정에서 알림을 허용해주세요."
-          );
+        if (!AudioContextClass) {
+          return;
         }
 
-        throw new Error(
-          "알림 권한을 허용해야 알림을 받을 수 있습니다."
-        );
-      }
-
-      const AudioContextClass =
-        window.AudioContext ||
-        (
-          window as typeof window & {
-            webkitAudioContext?: typeof AudioContext;
-          }
-        ).webkitAudioContext;
-
-      if (AudioContextClass) {
-        let audioContext = audioContextRef.current;
+        let audioContext =
+          audioContextRef.current;
 
         if (!audioContext) {
-          audioContext = new AudioContextClass();
+          audioContext =
+            new AudioContextClass();
 
-          audioContextRef.current = audioContext;
+          audioContextRef.current =
+            audioContext;
         }
 
-        if (audioContext.state === "suspended") {
-          await audioContext.resume();
+        if (
+          audioContext.state ===
+          "suspended"
+        ) {
+          void audioContext.resume();
         }
 
-        setSoundEnabled(true);
+        const now =
+          audioContext.currentTime;
 
-        const now = audioContext.currentTime;
-
-        const oscillator =
+        const oscillator1 =
           audioContext.createOscillator();
 
-        const gain = audioContext.createGain();
+        const gain1 =
+          audioContext.createGain();
 
-        oscillator.type = "sine";
+        oscillator1.type = "sine";
 
-        oscillator.frequency.setValueAtTime(
+        oscillator1.frequency.setValueAtTime(
           880,
           now
         );
 
-        gain.gain.setValueAtTime(
+        gain1.gain.setValueAtTime(
           0.0001,
           now
         );
 
-        gain.gain.exponentialRampToValueAtTime(
-          0.12,
+        gain1.gain.exponentialRampToValueAtTime(
+          0.18,
           now + 0.01
         );
 
-        gain.gain.exponentialRampToValueAtTime(
+        gain1.gain.exponentialRampToValueAtTime(
           0.0001,
           now + 0.18
         );
 
-        oscillator.connect(gain);
+        oscillator1.connect(gain1);
 
-        gain.connect(audioContext.destination);
-
-        oscillator.start(now);
-
-        oscillator.stop(now + 0.2);
-      }
-
-      if (
-        !("serviceWorker" in navigator) ||
-        !("PushManager" in window)
-      ) {
-        throw new Error(
-          "이 브라우저에서는 Web Push를 사용할 수 없습니다. 아이폰에서는 배포된 사이트를 Safari로 연 뒤 홈 화면에 추가해서 실행해주세요."
-        );
-      }
-
-      const vapidPublicKey =
-        process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
-
-      if (!vapidPublicKey) {
-        throw new Error(
-          "NEXT_PUBLIC_VAPID_PUBLIC_KEY가 설정되지 않았습니다."
-        );
-      }
-
-      const registration =
-        await navigator.serviceWorker.register(
-          "/sw.js",
-          {
-            scope: "/",
-          }
+        gain1.connect(
+          audioContext.destination
         );
 
-      await navigator.serviceWorker.ready;
+        oscillator1.start(now);
+        oscillator1.stop(now + 0.2);
 
-      let pushSubscription =
-        await registration.pushManager.getSubscription();
+        const oscillator2 =
+          audioContext.createOscillator();
 
-      if (!pushSubscription) {
-        pushSubscription =
-          await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey:
-              urlBase64ToUint8Array(
-                vapidPublicKey
-              ),
-          });
-      }
+        const gain2 =
+          audioContext.createGain();
 
-      const {
-        data: { session },
-        error: sessionError,
-      } = await supabase.auth.getSession();
+        oscillator2.type = "sine";
 
-      if (
-        sessionError ||
-        !session?.access_token
-      ) {
-        throw new Error(
-          "관리자 로그인 정보를 확인할 수 없습니다. 다시 로그인해주세요."
+        oscillator2.frequency.setValueAtTime(
+          1174,
+          now + 0.2
+        );
+
+        gain2.gain.setValueAtTime(
+          0.0001,
+          now + 0.2
+        );
+
+        gain2.gain.exponentialRampToValueAtTime(
+          0.18,
+          now + 0.21
+        );
+
+        gain2.gain.exponentialRampToValueAtTime(
+          0.0001,
+          now + 0.4
+        );
+
+        oscillator2.connect(gain2);
+
+        gain2.connect(
+          audioContext.destination
+        );
+
+        oscillator2.start(now + 0.2);
+        oscillator2.stop(now + 0.42);
+      } catch (error) {
+        console.error(
+          "알림음 재생 오류:",
+          error
         );
       }
+    }, [soundEnabled]);
 
-      const response = await fetch(
-        "/api/push/subscribe",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-            Authorization:
-              `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            subscription:
-              pushSubscription.toJSON(),
-          }),
+  const showBrowserNotification =
+    useCallback(
+      (message: ChatMessage) => {
+        if (
+          typeof window === "undefined" ||
+          !("Notification" in window) ||
+          Notification.permission !==
+            "granted"
+        ) {
+          return;
         }
+
+        /*
+         * 데스크톱 브라우저에서 관리자 페이지가
+         * 열려 있을 때 사용하는 기존 알림입니다.
+         *
+         * iPhone에서 앱이 닫힌 경우에는
+         * public/sw.js의 Web Push가 담당합니다.
+         */
+        try {
+          const notification =
+            new Notification(
+              "더세이브철거 새 상담 메시지",
+              {
+                body: shortenMessage(
+                  message.message
+                ),
+                tag: `chat-${message.room_id}`,
+                requireInteraction: false,
+              }
+            );
+
+          notification.onclick = () => {
+            window.focus();
+
+            setSelectedRoomId(
+              message.room_id
+            );
+
+            setUnreadCounts(
+              (current) => ({
+                ...current,
+                [message.room_id]: 0,
+              })
+            );
+
+            notification.close();
+          };
+        } catch (error) {
+          /*
+           * iOS 홈 화면 Web App에서는
+           * new Notification()이 지원되지 않을 수
+           * 있으므로 여기서 전체 기능을 실패시키지
+           * 않습니다.
+           */
+          console.log(
+            "페이지 내 브라우저 알림 생략:",
+            error
+          );
+        }
+      },
+      []
+    );
+
+  const enableNotifications =
+    useCallback(async () => {
+      if (typeof window === "undefined") {
+        return;
+      }
+
+      if (isEnablingNotifications) {
+        return;
+      }
+
+      setIsEnablingNotifications(true);
+      setPushEnabled(false);
+      setErrorMessage("");
+      setNotificationStep(
+        "알림 권한 확인중"
       );
 
-      const result =
-        (await response.json()) as {
+      try {
+        /*
+         * 1. Notification API 확인
+         */
+        if (!("Notification" in window)) {
+          setNotificationPermission(
+            "unsupported"
+          );
+
+          throw new Error(
+            "현재 환경에서는 알림 기능을 사용할 수 없습니다. 아이폰에서는 Safari에서 홈 화면에 추가한 '더세이브 상담' 앱으로 실행해주세요."
+          );
+        }
+
+        /*
+         * 이미 알림 권한이 granted인 경우
+         * requestPermission()을 다시 호출하지 않습니다.
+         *
+         * 아이폰 PWA에서 이미 허용된 권한을
+         * 반복 요청하면서 생길 수 있는 문제를
+         * 피하기 위한 처리입니다.
+         */
+        let permission =
+          Notification.permission;
+
+        if (permission === "default") {
+          permission =
+            await withTimeout(
+              Notification.requestPermission(),
+              15000,
+              "아이폰 알림 권한 확인 시간이 초과되었습니다. 앱을 완전히 종료한 뒤 다시 실행해주세요."
+            );
+        }
+
+        setNotificationPermission(
+          permission
+        );
+
+        if (permission !== "granted") {
+          if (permission === "denied") {
+            throw new Error(
+              "알림이 차단되어 있습니다. 아이폰 설정 → 알림 → 더세이브 상담 → 알림 허용을 켜주세요."
+            );
+          }
+
+          throw new Error(
+            "알림 권한을 허용해야 새 상담 알림을 받을 수 있습니다."
+          );
+        }
+
+        /*
+         * 2. 알림음 활성화
+         *
+         * 실패하더라도 Web Push 등록 자체는
+         * 계속 진행합니다.
+         */
+        try {
+          const AudioContextClass =
+            window.AudioContext ||
+            (
+              window as typeof window & {
+                webkitAudioContext?: typeof AudioContext;
+              }
+            ).webkitAudioContext;
+
+          if (AudioContextClass) {
+            let audioContext =
+              audioContextRef.current;
+
+            if (!audioContext) {
+              audioContext =
+                new AudioContextClass();
+
+              audioContextRef.current =
+                audioContext;
+            }
+
+            if (
+              audioContext.state ===
+              "suspended"
+            ) {
+              await withTimeout(
+                audioContext.resume(),
+                5000,
+                "알림음 활성화 시간이 초과되었습니다."
+              );
+            }
+
+            setSoundEnabled(true);
+
+            const now =
+              audioContext.currentTime;
+
+            const oscillator =
+              audioContext.createOscillator();
+
+            const gain =
+              audioContext.createGain();
+
+            oscillator.type = "sine";
+
+            oscillator.frequency.setValueAtTime(
+              880,
+              now
+            );
+
+            gain.gain.setValueAtTime(
+              0.0001,
+              now
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+              0.12,
+              now + 0.01
+            );
+
+            gain.gain.exponentialRampToValueAtTime(
+              0.0001,
+              now + 0.18
+            );
+
+            oscillator.connect(gain);
+
+            gain.connect(
+              audioContext.destination
+            );
+
+            oscillator.start(now);
+            oscillator.stop(now + 0.2);
+          } else {
+            /*
+             * AudioContext가 없더라도
+             * 푸시 알림은 사용할 수 있습니다.
+             */
+            setSoundEnabled(true);
+          }
+        } catch (audioError) {
+          console.log(
+            "알림음 활성화 생략:",
+            audioError
+          );
+
+          /*
+           * 아이폰 시스템 알림 사운드는
+           * iOS가 처리하므로 Web Push 등록을
+           * 계속 진행합니다.
+           */
+          setSoundEnabled(true);
+        }
+
+        /*
+         * 3. Web Push 지원 확인
+         */
+        setNotificationStep(
+          "서비스워커 확인중"
+        );
+
+        if (
+          !("serviceWorker" in navigator) ||
+          !("PushManager" in window)
+        ) {
+          throw new Error(
+            "이 환경에서는 Web Push를 사용할 수 없습니다. 아이폰 Safari에서 사이트를 홈 화면에 추가한 뒤, 홈 화면의 '더세이브 상담' 앱으로 실행해주세요."
+          );
+        }
+
+        const vapidPublicKey =
+          process.env
+            .NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+
+        if (!vapidPublicKey) {
+          throw new Error(
+            "Vercel의 NEXT_PUBLIC_VAPID_PUBLIC_KEY를 확인할 수 없습니다. 환경변수 설정 후 다시 배포해주세요."
+          );
+        }
+
+        /*
+         * 4. 서비스워커 등록
+         */
+        const registration =
+          await withTimeout(
+            navigator.serviceWorker.register(
+              "/sw.js",
+              {
+                scope: "/",
+                updateViaCache: "none",
+              }
+            ),
+            15000,
+            "서비스워커 등록 시간이 초과되었습니다. 앱을 완전히 종료한 뒤 다시 실행해주세요."
+          );
+
+        /*
+         * 최신 sw.js 확인을 시도합니다.
+         * 업데이트 실패가 Push 전체를 막지는 않도록
+         * 별도로 처리합니다.
+         */
+        try {
+          await withTimeout(
+            registration.update(),
+            10000,
+            "서비스워커 업데이트 시간 초과"
+          );
+        } catch (updateError) {
+          console.log(
+            "서비스워커 업데이트 확인 생략:",
+            updateError
+          );
+        }
+
+        /*
+         * navigator.serviceWorker.ready를
+         * 무기한 기다리지 않습니다.
+         *
+         * 등록 객체가 이미 active 상태라면
+         * 그대로 사용합니다.
+         */
+        let pushRegistration =
+          registration;
+
+        if (!registration.active) {
+          try {
+            pushRegistration =
+              await withTimeout(
+                navigator.serviceWorker.ready,
+                15000,
+                "서비스워커 활성화 시간이 초과되었습니다. 홈 화면 앱을 완전히 종료한 뒤 다시 실행해주세요."
+              );
+          } catch (readyError) {
+            console.error(
+              "서비스워커 ready 오류:",
+              readyError
+            );
+
+            /*
+             * registration.waiting 또는
+             * installing 상태일 수 있으므로
+             * 한 번 더 현재 등록 상태를 확인합니다.
+             */
+            const currentRegistration =
+              await navigator.serviceWorker.getRegistration(
+                "/"
+              );
+
+            if (
+              !currentRegistration?.active
+            ) {
+              throw readyError;
+            }
+
+            pushRegistration =
+              currentRegistration;
+          }
+        }
+
+        /*
+         * 5. 기존 Push 구독 확인
+         */
+        setNotificationStep(
+          "푸시 구독 확인중"
+        );
+
+        let pushSubscription =
+          await withTimeout(
+            pushRegistration.pushManager.getSubscription(),
+            15000,
+            "기존 푸시 구독 확인 시간이 초과되었습니다."
+          );
+
+        /*
+         * 6. 구독이 없으면 새 Push 구독 생성
+         */
+        if (!pushSubscription) {
+          setNotificationStep(
+            "푸시 구독 생성중"
+          );
+
+          try {
+            pushSubscription =
+              await withTimeout(
+                pushRegistration.pushManager.subscribe(
+                  {
+                    userVisibleOnly: true,
+                    applicationServerKey:
+                      urlBase64ToUint8Array(
+                        vapidPublicKey
+                      ),
+                  }
+                ),
+                20000,
+                "아이폰 푸시 구독 생성 시간이 초과되었습니다. 앱을 완전히 종료한 뒤 다시 실행하고 다시 시도해주세요."
+              );
+          } catch (subscribeError) {
+            console.error(
+              "PushManager 구독 생성 오류:",
+              subscribeError
+            );
+
+            /*
+             * subscribe() 호출 도중 실제로는
+             * 구독이 만들어졌는데 Promise 응답만
+             * 늦어진 경우를 대비해 다시 확인합니다.
+             */
+            try {
+              const recoveredSubscription =
+                await withTimeout(
+                  pushRegistration.pushManager.getSubscription(),
+                  5000,
+                  "푸시 구독 재확인 시간 초과"
+                );
+
+              if (recoveredSubscription) {
+                pushSubscription =
+                  recoveredSubscription;
+              } else {
+                throw subscribeError;
+              }
+            } catch {
+              throw subscribeError;
+            }
+          }
+        }
+
+        if (!pushSubscription) {
+          throw new Error(
+            "아이폰 푸시 구독을 생성하지 못했습니다."
+          );
+        }
+
+        /*
+         * 7. Supabase 관리자 로그인 세션 확인
+         */
+        setNotificationStep(
+          "로그인 확인중"
+        );
+
+        const {
+          data: { session },
+          error: sessionError,
+        } = await withTimeout(
+          supabase.auth.getSession(),
+          10000,
+          "관리자 로그인 확인 시간이 초과되었습니다."
+        );
+
+        if (
+          sessionError ||
+          !session?.access_token
+        ) {
+          throw new Error(
+            "관리자 로그인 정보를 확인할 수 없습니다. 로그아웃 후 다시 로그인해주세요."
+          );
+        }
+
+        /*
+         * 8. 현재 아이폰 Push 구독을
+         * 서버 → Supabase push_subscriptions에 저장
+         */
+        setNotificationStep(
+          "기기 등록중"
+        );
+
+        const response =
+          await withTimeout(
+            fetch(
+              "/api/push/subscribe",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type":
+                    "application/json",
+                  Authorization:
+                    `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  subscription:
+                    pushSubscription.toJSON(),
+                }),
+              }
+            ),
+            15000,
+            "아이폰 알림 기기를 서버에 등록하는 시간이 초과되었습니다."
+          );
+
+        let result: {
           ok?: boolean;
           message?: string;
-        };
+        } = {};
 
-      if (
-        !response.ok ||
-        !result.ok
-      ) {
-        throw new Error(
-          result.message ??
-            "푸시 알림 기기 등록에 실패했습니다."
+        try {
+          result =
+            (await response.json()) as {
+              ok?: boolean;
+              message?: string;
+            };
+        } catch {
+          throw new Error(
+            `알림 기기 등록 서버 응답을 확인할 수 없습니다. HTTP ${response.status}`
+          );
+        }
+
+        if (
+          !response.ok ||
+          !result.ok
+        ) {
+          throw new Error(
+            result.message ??
+              `푸시 알림 기기 등록에 실패했습니다. HTTP ${response.status}`
+          );
+        }
+
+        /*
+         * 모든 단계 성공
+         */
+        setPushEnabled(true);
+        setSoundEnabled(true);
+        setNotificationStep(
+          "알림 설정 완료"
+        );
+
+        /*
+         * 완료 문구를 잠시 보여준 후
+         * 기본 상태로 되돌립니다.
+         */
+        window.setTimeout(() => {
+          setNotificationStep("");
+        }, 2500);
+      } catch (error) {
+        console.error(
+          "알림 설정 오류:",
+          error
+        );
+
+        setPushEnabled(false);
+
+        const message =
+          getPushErrorMessage(error);
+
+        setErrorMessage(
+          `🔔 ${message}`
+        );
+
+        setNotificationStep("");
+      } finally {
+        setIsEnablingNotifications(
+          false
         );
       }
+    }, [isEnablingNotifications]);
 
-      setPushEnabled(true);
-    } catch (error) {
-      console.error(
-        "알림 설정 오류:",
-        error
-      );
+  const loadRooms =
+    useCallback(async () => {
+      setIsLoadingRooms(true);
 
-      setPushEnabled(false);
+      const { data, error } =
+        await supabase
+          .from("chat_rooms")
+          .select(
+            "id, visitor_id, status, created_at, updated_at"
+          )
+          .order("updated_at", {
+            ascending: false,
+          });
 
-      setErrorMessage(
-        error instanceof Error
-          ? error.message
-          : "알림 설정 중 오류가 발생했습니다. 브라우저 설정을 확인해주세요."
-      );
-    } finally {
-      setIsEnablingNotifications(false);
-    }
-  }, [isEnablingNotifications]);
+      if (error) {
+        console.error(
+          "상담방 불러오기 오류:",
+          error
+        );
 
-  const loadRooms = useCallback(async () => {
-    setIsLoadingRooms(true);
+        setErrorMessage(
+          `상담방을 불러오지 못했습니다. ${error.message}`
+        );
 
-    const { data, error } = await supabase
-      .from("chat_rooms")
-      .select(
-        "id, visitor_id, status, created_at, updated_at"
-      )
-      .order("updated_at", {
-        ascending: false,
-      });
+        setIsLoadingRooms(false);
+        return;
+      }
 
-    if (error) {
-      console.error(
-        "상담방 불러오기 오류:",
-        error
-      );
+      const nextRooms =
+        (data ?? []) as ChatRoom[];
 
-      setErrorMessage(
-        `상담방을 불러오지 못했습니다. ${error.message}`
+      setRooms(nextRooms);
+
+      setSelectedRoomId(
+        (currentRoomId) => {
+          if (
+            currentRoomId &&
+            nextRooms.some(
+              (room) =>
+                room.id ===
+                currentRoomId
+            )
+          ) {
+            return currentRoomId;
+          }
+
+          return nextRooms[0]?.id ?? null;
+        }
       );
 
       setIsLoadingRooms(false);
-
-      return;
-    }
-
-    const nextRooms =
-      (data ?? []) as ChatRoom[];
-
-    setRooms(nextRooms);
-
-    setSelectedRoomId(
-      (currentRoomId) => {
-        if (
-          currentRoomId &&
-          nextRooms.some(
-            (room) =>
-              room.id === currentRoomId
-          )
-        ) {
-          return currentRoomId;
-        }
-
-        return nextRooms[0]?.id ?? null;
-      }
-    );
-
-    setIsLoadingRooms(false);
-  }, []);
+    }, []);
 
   const loadMessages = useCallback(
     async (roomId: string) => {
@@ -609,7 +1135,8 @@ export default function AdminChatPage() {
       const {
         data: { session },
         error,
-      } = await supabase.auth.getSession();
+      } =
+        await supabase.auth.getSession();
 
       if (!mounted) {
         return;
@@ -626,13 +1153,11 @@ export default function AdminChatPage() {
         );
 
         setIsCheckingAuth(false);
-
         return;
       }
 
       if (!session?.user) {
         setUser(null);
-
         setIsCheckingAuth(false);
 
         router.replace("/admin");
@@ -641,35 +1166,34 @@ export default function AdminChatPage() {
       }
 
       setUser(session.user);
-
       setIsCheckingAuth(false);
     }
 
-    checkAuthentication();
+    void checkAuthentication();
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (!mounted) {
-          return;
+    } =
+      supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (!mounted) {
+            return;
+          }
+
+          if (!session?.user) {
+            setUser(null);
+
+            router.replace("/admin");
+
+            return;
+          }
+
+          setUser(session.user);
         }
-
-        if (!session?.user) {
-          setUser(null);
-
-          router.replace("/admin");
-
-          return;
-        }
-
-        setUser(session.user);
-      }
-    );
+      );
 
     return () => {
       mounted = false;
-
       subscription.unsubscribe();
     };
   }, [router]);
@@ -679,20 +1203,16 @@ export default function AdminChatPage() {
       return;
     }
 
-    loadRooms();
+    void loadRooms();
   }, [user, loadRooms]);
 
   useEffect(() => {
-    if (
-      !user ||
-      !selectedRoomId
-    ) {
+    if (!user || !selectedRoomId) {
       setMessages([]);
-
       return;
     }
 
-    loadMessages(selectedRoomId);
+    void loadMessages(selectedRoomId);
   }, [
     user,
     selectedRoomId,
@@ -714,7 +1234,7 @@ export default function AdminChatPage() {
           table: "chat_rooms",
         },
         () => {
-          loadRooms();
+          void loadRooms();
         }
       )
       .subscribe((status) => {
@@ -728,7 +1248,7 @@ export default function AdminChatPage() {
       });
 
     return () => {
-      supabase.removeChannel(
+      void supabase.removeChannel(
         roomChannel
       );
     };
@@ -752,52 +1272,47 @@ export default function AdminChatPage() {
           const newMessage =
             payload.new as ChatMessage;
 
-          setRooms(
-            (currentRooms) => {
-              const roomExists =
-                currentRooms.some(
-                  (room) =>
-                    room.id ===
-                    newMessage.room_id
-                );
-
-              if (!roomExists) {
-                void loadRooms();
-
-                return currentRooms;
-              }
-
-              const nextRooms =
-                currentRooms.map(
-                  (room) => {
-                    if (
-                      room.id !==
-                      newMessage.room_id
-                    ) {
-                      return room;
-                    }
-
-                    return {
-                      ...room,
-                      updated_at:
-                        newMessage.created_at,
-                    };
-                  }
-                );
-
-              return [
-                ...nextRooms,
-              ].sort(
-                (a, b) =>
-                  new Date(
-                    b.updated_at
-                  ).getTime() -
-                  new Date(
-                    a.updated_at
-                  ).getTime()
+          setRooms((currentRooms) => {
+            const roomExists =
+              currentRooms.some(
+                (room) =>
+                  room.id ===
+                  newMessage.room_id
               );
+
+            if (!roomExists) {
+              void loadRooms();
+              return currentRooms;
             }
-          );
+
+            const nextRooms =
+              currentRooms.map(
+                (room) => {
+                  if (
+                    room.id !==
+                    newMessage.room_id
+                  ) {
+                    return room;
+                  }
+
+                  return {
+                    ...room,
+                    updated_at:
+                      newMessage.created_at,
+                  };
+                }
+              );
+
+            return [...nextRooms].sort(
+              (a, b) =>
+                new Date(
+                  b.updated_at
+                ).getTime() -
+                new Date(
+                  a.updated_at
+                ).getTime()
+            );
+          });
 
           if (
             newMessage.room_id ===
@@ -874,7 +1389,7 @@ export default function AdminChatPage() {
       });
 
     return () => {
-      supabase.removeChannel(
+      void supabase.removeChannel(
         messageChannel
       );
     };
@@ -946,7 +1461,6 @@ export default function AdminChatPage() {
     }
 
     setIsSending(true);
-
     setErrorMessage("");
 
     const { error } =
@@ -969,12 +1483,10 @@ export default function AdminChatPage() {
       );
 
       setIsSending(false);
-
       return;
     }
 
     setInputMessage("");
-
     setIsSending(false);
   }
 
@@ -1108,7 +1620,6 @@ export default function AdminChatPage() {
             {totalUnreadCount > 0 && (
               <div className="flex items-center gap-2 rounded-full bg-red-500 px-3 py-1.5 text-xs font-black text-white">
                 <span className="h-2 w-2 animate-pulse rounded-full bg-white" />
-
                 새 메시지{" "}
                 {totalUnreadCount}
               </div>
@@ -1131,10 +1642,13 @@ export default function AdminChatPage() {
                 pushEnabled
                   ? "bg-emerald-500 text-white hover:bg-emerald-600"
                   : "bg-yellow-400 text-zinc-950 hover:bg-yellow-300"
-              } disabled:cursor-not-allowed disabled:opacity-60`}
+              } disabled:cursor-not-allowed disabled:opacity-80`}
             >
               {isEnablingNotifications
-                ? "🔔 알림 설정중"
+                ? `🔔 ${
+                    notificationStep ||
+                    "알림 설정중"
+                  }`
                 : notificationPermission ===
                       "granted" &&
                     soundEnabled &&
@@ -1165,14 +1679,20 @@ export default function AdminChatPage() {
         </div>
       </header>
 
+      {notificationStep ===
+        "알림 설정 완료" && (
+        <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-800">
+          <div className="mx-auto max-w-[1600px]">
+            ✅ 이 기기의 새 상담 푸시 알림 등록이 완료되었습니다.
+          </div>
+        </div>
+      )}
+
       {notificationPermission ===
         "denied" && (
         <div className="border-b border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800">
           <div className="mx-auto max-w-[1600px]">
-            🔕 브라우저 알림이 차단되어
-            있습니다. Chrome 주소창 왼쪽의
-            사이트 설정에서 알림을
-            허용해주세요.
+            🔕 알림이 차단되어 있습니다. 아이폰에서는 설정 → 알림 → 더세이브 상담 → 알림 허용을 켜주세요.
           </div>
         </div>
       )}
@@ -1181,8 +1701,7 @@ export default function AdminChatPage() {
         "unsupported" && (
         <div className="border-b border-orange-200 bg-orange-50 px-4 py-3 text-sm font-semibold text-orange-800">
           <div className="mx-auto max-w-[1600px]">
-            현재 브라우저에서는 알림 기능을
-            사용할 수 없습니다.
+            현재 환경에서는 알림 기능을 사용할 수 없습니다. 아이폰에서는 홈 화면에 추가한 더세이브 상담 앱으로 실행해주세요.
           </div>
         </div>
       )}
@@ -1228,14 +1747,15 @@ export default function AdminChatPage() {
               </div>
 
               <p className="mt-1 text-xs text-zinc-500">
-                최근 메시지 순으로
-                표시됩니다.
+                최근 메시지 순으로 표시됩니다.
               </p>
             </div>
 
             <button
               type="button"
-              onClick={loadRooms}
+              onClick={() =>
+                void loadRooms()
+              }
               className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs font-bold transition hover:bg-zinc-50"
             >
               새로고침
@@ -1245,8 +1765,7 @@ export default function AdminChatPage() {
           <div className="max-h-[320px] overflow-y-auto lg:max-h-[calc(100vh-145px)]">
             {isLoadingRooms ? (
               <div className="px-5 py-10 text-center text-sm text-zinc-500">
-                상담 목록을 불러오는
-                중입니다.
+                상담 목록을 불러오는 중입니다.
               </div>
             ) : rooms.length ===
               0 ? (
@@ -1263,8 +1782,7 @@ export default function AdminChatPage() {
                   홈페이지 방문자가 실시간
                   채팅을 시작하면
                   <br />
-                  이곳에 상담방이
-                  표시됩니다.
+                  이곳에 상담방이 표시됩니다.
                 </p>
               </div>
             ) : (
@@ -1373,8 +1891,7 @@ export default function AdminChatPage() {
                     {unreadCount >
                       0 && (
                       <p className="mt-2 text-xs font-black text-red-600">
-                        새 메시지가
-                        도착했습니다.
+                        새 메시지가 도착했습니다.
                       </p>
                     )}
                   </button>
@@ -1440,8 +1957,8 @@ export default function AdminChatPage() {
                 "open" ? (
                   <button
                     type="button"
-                    onClick={
-                      handleCloseRoom
+                    onClick={() =>
+                      void handleCloseRoom()
                     }
                     className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-bold transition hover:bg-zinc-50"
                   >
@@ -1450,8 +1967,8 @@ export default function AdminChatPage() {
                 ) : (
                   <button
                     type="button"
-                    onClick={
-                      handleReopenRoom
+                    onClick={() =>
+                      void handleReopenRoom()
                     }
                     className="rounded-lg bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-800"
                   >
@@ -1464,8 +1981,7 @@ export default function AdminChatPage() {
                 {isLoadingMessages ? (
                   <div className="flex h-full min-h-[300px] items-center justify-center">
                     <p className="text-sm text-zinc-500">
-                      메시지를 불러오는
-                      중입니다.
+                      메시지를 불러오는 중입니다.
                     </p>
                   </div>
                 ) : messages.length ===
@@ -1473,14 +1989,11 @@ export default function AdminChatPage() {
                   <div className="flex h-full min-h-[300px] items-center justify-center">
                     <div className="text-center">
                       <p className="text-sm font-bold text-zinc-700">
-                        아직 메시지가
-                        없습니다.
+                        아직 메시지가 없습니다.
                       </p>
 
                       <p className="mt-2 text-xs text-zinc-500">
-                        고객이 메시지를
-                        보내면 여기에
-                        표시됩니다.
+                        고객이 메시지를 보내면 여기에 표시됩니다.
                       </p>
                     </div>
                   </div>
@@ -1566,8 +2079,7 @@ export default function AdminChatPage() {
                 "closed" ? (
                   <div className="rounded-xl bg-zinc-100 px-4 py-4 text-center text-sm font-semibold text-zinc-500">
                     종료된 상담입니다.
-                    답변하려면 상담을 다시
-                    열어주세요.
+                    답변하려면 상담을 다시 열어주세요.
                   </div>
                 ) : (
                   <form
@@ -1624,8 +2136,7 @@ export default function AdminChatPage() {
 
                 <div className="mx-auto mt-2 flex max-w-4xl items-center justify-between gap-3 text-[11px] text-zinc-400">
                   <span>
-                    Enter 전송 · Shift +
-                    Enter 줄바꿈
+                    Enter 전송 · Shift + Enter 줄바꿈
                   </span>
 
                   <span>
