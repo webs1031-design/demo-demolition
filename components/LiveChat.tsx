@@ -1,3 +1,4 @@
+
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
@@ -342,20 +343,54 @@ export default function LiveChat() {
   return (
     <>
       {/* ==================================================
+          실시간 채팅 버튼 애니메이션
+          빨간색 ↔ 파란색 반복
+      ================================================== */}
+      <style>{`
+        @keyframes liveChatBlink {
+          0%, 100% {
+            background-color: #ef233c;
+            box-shadow: 0 0 15px rgba(239, 35, 60, 0.5);
+          }
+
+          50% {
+            background-color: #2563eb;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.6);
+          }
+        }
+
+        .live-chat-blink {
+          background-color: #ef233c;
+          animation: liveChatBlink 1.5s ease-in-out infinite;
+        }
+
+        .live-chat-blink:hover {
+          transform: scale(1.06);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .live-chat-blink {
+            animation: none;
+            background-color: #2563eb;
+          }
+        }
+      `}</style>
+
+      {/* ==================================================
           실시간 채팅 열기 버튼
       ================================================== */}
       {!isOpen && (
         <button
           type="button"
           onClick={handleOpenChat}
-          className="fixed bottom-20 right-4 z-[60] flex items-center gap-2 rounded-full bg-yellow-400 px-5 py-3.5 text-sm font-bold text-zinc-950 shadow-lg transition hover:bg-yellow-300 md:bottom-6 md:right-6"
-          aria-label="실시간 채팅 열기"
+          className="live-chat-blink fixed bottom-20 right-4 z-[60] flex items-center gap-2 rounded-full px-6 py-4 text-sm font-black text-white shadow-lg transition-transform duration-200 md:bottom-6 md:right-6"
+          aria-label="실시간채팅하기"
         >
           <span
-            className="h-2.5 w-2.5 rounded-full bg-green-600"
+            className="h-2.5 w-2.5 rounded-full bg-green-400"
             aria-hidden="true"
           />
-          실시간 채팅
+          실시간채팅하기
         </button>
       )}
 
